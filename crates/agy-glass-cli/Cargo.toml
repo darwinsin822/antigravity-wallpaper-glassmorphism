@@ -1,0 +1,15 @@
+[package]
+name = "agy-glass"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+license.workspace = true
+repository.workspace = true
+description = "High-performance native CLI for Antigravity IDE wallpaper & glassmorphism customization"
+
+[dependencies]
+agy-glass-core = { path = "../agy-glass-core" }
+clap.workspace = true
+colored.workspace = true
+thiserror.workspace = true
+tempfile.workspace = true

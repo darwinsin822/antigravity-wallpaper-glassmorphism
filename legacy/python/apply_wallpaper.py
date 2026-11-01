@@ -1,7 +1,9 @@
 #!/usr/bin/env python3
 """
 apply_wallpaper.py - Gestor de Wallpapers Glassmorphism para Google Antigravity IDE
-Autor: DarwinSin (darwinsin822)
+Soporte para directrices XDG, distribuciones Debian/Ubuntu/Mint y Arch Linux (AUR).
+Autor original: DarwinSin (darwinsin822)
+Refactorización de compatibilidad y portabilidad: Kineyo
 Licencia: MIT
 
 Uso:
@@ -19,15 +21,18 @@ from PIL import Image
 import io
 
 try:
+    from paths import get_wallpaper_dirs, get_devtools_port_file, get_custom_css_path
+except ImportError:
+    from scripts.paths import get_wallpaper_dirs, get_devtools_port_file, get_custom_css_path
+
+try:
     import asyncio
     import websockets
     WEBSOCKETS_AVAILABLE = True
 except ImportError:
     WEBSOCKETS_AVAILABLE = False
 
-CUSTOM_CSS_PATH = os.path.expanduser("~/.gemini/antigravity/custom/wallpaper.css")
-DEFAULT_WALLPAPER_DIR = os.path.expanduser("~/Imágenes/WALLPAPERS")
-DEVTOOLS_PORT_FILE = os.path.expanduser("~/.config/Antigravity/DevToolsActivePort")
+CUSTOM_CSS_PATH = get_custom_css_path()
 
 def generate_glassmorphism_css(data_uri, wallpaper_name):
     return f"""/* ======================================================================
@@ -43,6 +48,7 @@ def generate_glassmorphism_css(data_uri, wallpaper_name):
   --color-sidebar-secondary: rgba(18, 20, 28, 0.70) !important;
   --card: rgba(16, 18, 24, 0.70) !important;
   --color-card: rgba(16, 18, 24, 0.70) !important;
+  --agy-wallpaper-scrim: rgba(8, 10, 14, 0.45) !important;
 }}
 
 /* Fondo base de la ventana y HTML */
@@ -55,14 +61,23 @@ body {{
   background-repeat: no-repeat !important;
 }}
 
+/* Capa de contraste adaptativo (Scrim) para proteger legibilidad de sintaxis */
+body::before {{
+  content: "" !important;
+  position: fixed !important;
+  top: 0 !important;
+  left: 0 !important;
+  right: 0 !important;
+  bottom: 0 !important;
+  background: var(--agy-wallpaper-scrim) !important;
+  pointer-events: none !important;
+  z-index: 0 !important;
+}}
+
 /* Contenedor principal de la aplicación Antigravity */
 .bg-background,
 [class*="bg-background"] {{
   background-color: transparent !important;
-  background-image: url("{data_uri}") !important;
-  background-size: cover !important;
-  background-position: center center !important;
-  background-attachment: fixed !important;
 }}
 
 /* Sidebar y paneles de navegación con Glassmorphism translúcido */
@@ -102,12 +117,6 @@ body {{
 [class*="border-border"] {{
   border-color: rgba(255, 255, 255, 0.08) !important;
 }}
-
-/* Preservar legibilidad absoluta del texto y elementos interactivos */
-.text-foreground,
-p, span, h1, h2, h3, h4, h5, h6, pre, code, button, input, textarea {{
-  opacity: 1 !important;
-}}
 """
 
 def optimize_image_to_data_uri(image_path):
@@ -122,12 +131,13 @@ def optimize_image_to_data_uri(image_path):
         return f"data:image/jpeg;base64,{b64}"
 
 async def inject_live(css_content):
-    if not os.path.exists(DEVTOOLS_PORT_FILE):
+    port_file = get_devtools_port_file()
+    if not os.path.exists(port_file):
         print("ℹ️ Antigravity no tiene puerto DevTools activo (probablemente cerrado). Se cargará al abrir el IDE.")
         return
 
     try:
-        with open(DEVTOOLS_PORT_FILE, "r") as pf:
+        with open(port_file, "r") as pf:
             port = pf.readline().strip()
         with urllib.request.urlopen(f"http://127.0.0.1:{port}/json") as r:
             pages = json.loads(r.read())
@@ -156,18 +166,27 @@ async def inject_live(css_content):
 
 def main():
     parser = argparse.ArgumentParser(description="Aplica un wallpaper con efecto Glassmorphism a Google Antigravity IDE.")
-    parser.add_argument("image", nargs="?", help="Ruta de la imagen de wallpaper (JPG, PNG, WebP)")
-    parser.add_argument("--list", action="store_true", help="Lista las imágenes disponibles en ~/Imágenes/WALLPAPERS")
+    parser.add_argument("image", nargs="?", help="Ruta o nombre del archivo de imagen (JPG, PNG, WebP)")
+    parser.add_argument("--list", action="store_true", help="Lista las imágenes disponibles en las carpetas de imágenes detectadas")
     args = parser.parse_args()
 
+    wallpaper_dirs = get_wallpaper_dirs()
+
     if args.list:
-        if os.path.exists(DEFAULT_WALLPAPER_DIR):
-            print(f"📁 Wallpapers en {DEFAULT_WALLPAPER_DIR}:")
-            for f in sorted(os.listdir(DEFAULT_WALLPAPER_DIR)):
-                if f.lower().endswith(('.jpg', '.jpeg', '.png', '.webp')):
-                    print(f"  • {f}")
-        else:
-            print(f"Directorio no encontrado: {DEFAULT_WALLPAPER_DIR}")
+        if not wallpaper_dirs:
+            print("❌ No se detectaron carpetas de imágenes en el sistema.")
+            return
+        found_any = False
+        for wdir in wallpaper_dirs:
+            if os.path.exists(wdir):
+                files = [f for f in sorted(os.listdir(wdir)) if f.lower().endswith(('.jpg', '.jpeg', '.png', '.webp'))]
+                if files:
+                    found_any = True
+                    print(f"📁 Wallpapers en {wdir}:")
+                    for f in files:
+                        print(f"  • {f}")
+        if not found_any:
+            print(f"ℹ️ No se encontraron imágenes en las carpetas inspeccionadas: {', '.join(wallpaper_dirs)}")
         return
 
     if not args.image:
@@ -176,12 +195,17 @@ def main():
 
     image_path = os.path.abspath(os.path.expanduser(args.image))
     if not os.path.exists(image_path):
-        # Intentar en la carpeta de wallpapers por defecto
-        alt_path = os.path.join(DEFAULT_WALLPAPER_DIR, args.image)
-        if os.path.exists(alt_path):
-            image_path = alt_path
-        else:
+        # Buscar en las carpetas de imágenes detectadas (XDG / Pictures / etc.)
+        found = False
+        for wdir in wallpaper_dirs:
+            alt_path = os.path.join(wdir, args.image)
+            if os.path.exists(alt_path):
+                image_path = alt_path
+                found = True
+                break
+        if not found:
             print(f"❌ Error: La imagen '{args.image}' no fue encontrada.")
+            print(f"🔍 Carpetas inspeccionadas: {', '.join(wallpaper_dirs)}")
             sys.exit(1)
 
     print(f"🖼️ Procesando wallpaper: {os.path.basename(image_path)}...")
