@@ -16,7 +16,7 @@ else
 fi
 
 echo "🧪 [2/3] Validando sintaxis AST de scripts Python del motor Glassmorphism..."
-for py in "apply_wallpaper.py" "patch_antigravity.py" "restore_antigravity.py" "test_persistence.py"; do
+for py in "paths.py" "apply_wallpaper.py" "patch_antigravity.py" "restore_antigravity.py" "test_persistence.py"; do
   python3 -c "import ast; ast.parse(open('$REPO_DIR/scripts/$py').read()); print('  ✔ [PASS] $py AST sintácticamente válido.')"
 done
 
