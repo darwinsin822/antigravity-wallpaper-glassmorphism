@@ -115,8 +115,13 @@ def optimize_image_to_data_uri(image_path):
         raise FileNotFoundError(f"No existe la imagen: {image_path}")
 
     with Image.open(image_path) as im:
+        # Si la imagen excede 2880px de ancho, escalar suavemente con Lanczos para optimizar RAM y renderizado
+        target_im = im
+        if im.width > 2880:
+            new_h = int(2880 * im.height / im.width)
+            target_im = im.resize((2880, new_h), Image.Resampling.LANCZOS)
         buf = io.BytesIO()
-        im.convert("RGB").save(buf, format="JPEG", quality=93, optimize=True)
+        target_im.convert("RGB").save(buf, format="JPEG", quality=93, optimize=True)
         jpeg_bytes = buf.getvalue()
         b64 = base64.b64encode(jpeg_bytes).decode("ascii")
         return f"data:image/jpeg;base64,{b64}"
