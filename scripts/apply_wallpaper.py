@@ -31,82 +31,97 @@ DEVTOOLS_PORT_FILE = os.path.expanduser("~/.config/Antigravity/DevToolsActivePor
 
 def generate_glassmorphism_css(data_uri, wallpaper_name):
     return f"""/* ======================================================================
-   Antigravity IDE — Wallpaper Glassmorphism (Tailwind & Electron Native)
-   Generado automáticamente por apply_wallpaper.py
+   Antigravity IDE — Wallpaper Glassmorphism & High-Contrast Readability
    Wallpaper: {wallpaper_name}
    ====================================================================== */
 
-:root {{
-  --background: rgba(12, 14, 18, 0.65) !important;
-  --color-background: rgba(12, 14, 18, 0.65) !important;
-  --sidebar: rgba(14, 16, 22, 0.72) !important;
-  --color-sidebar-secondary: rgba(18, 20, 28, 0.70) !important;
-  --card: rgba(16, 18, 24, 0.70) !important;
-  --color-card: rgba(16, 18, 24, 0.70) !important;
+/* Limpieza de fondos anidados para evitar multiplicación de opacidades y oscurecimiento */
+.agy-shell,
+.agy-sheet,
+[data-split-root],
+[data-testid="aux-pane-split"],
+[data-testid="aux-pane-split"] > div,
+.flex-1.flex.min-h-0,
+.flex-1.flex.min-h-0 > div {{
+  background-color: transparent !important;
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
 }}
 
-/* Fondo base de la ventana y HTML */
+/* Fondo wallpaper con viñeta para balance óptimo de saturación */
 html,
-body {{
-  background-image: url("{data_uri}") !important;
+body,
+.bg-background,
+[class*="bg-background"] {{
+  background: #080a10 !important;
+  background-image: linear-gradient(rgba(10, 14, 22, 0.45), rgba(10, 14, 22, 0.65)), url("{data_uri}") !important;
   background-size: cover !important;
   background-position: center center !important;
   background-attachment: fixed !important;
   background-repeat: no-repeat !important;
 }}
 
-/* Contenedor principal de la aplicación Antigravity */
-.bg-background,
-[class*="bg-background"] {{
-  background-color: transparent !important;
-  background-image: url("{data_uri}") !important;
-  background-size: cover !important;
-  background-position: center center !important;
-  background-attachment: fixed !important;
-}}
-
-/* Sidebar y paneles de navegación con Glassmorphism translúcido */
+/* Sidebar y navegación con Glassmorphism suave */
 .bg-sidebar,
-[class*="bg-sidebar"] {{
-  background-color: rgba(12, 14, 20, 0.72) !important;
-  backdrop-filter: blur(14px) !important;
-  -webkit-backdrop-filter: blur(14px) !important;
-}}
-
-/* Tarjetas, burbujas de diálogo, chats y paneles secundarios */
-.bg-card,
-[class*="bg-card"] {{
-  background-color: rgba(16, 18, 24, 0.68) !important;
-  backdrop-filter: blur(10px) !important;
-  -webkit-backdrop-filter: blur(10px) !important;
-}}
-
-/* Barra superior / Header / Ventana */
-.h-screen > .shrink-0,
-.h-screen > .shrink-0 > div {{
-  background-color: rgba(10, 12, 16, 0.80) !important;
+[class*="bg-sidebar"],
+[data-testid="sidebar"] {{
+  background-color: rgba(10, 14, 24, 0.78) !important;
   backdrop-filter: blur(16px) !important;
   -webkit-backdrop-filter: blur(16px) !important;
 }}
 
-/* Área central de trabajo / Chat / Editor */
-.flex-1.flex.min-h-0 > div {{
-  background-color: rgba(12, 14, 18, 0.60) !important;
-  backdrop-filter: blur(8px) !important;
-  -webkit-backdrop-filter: blur(8px) !important;
+/* Panel principal y área de conversación: translúcido pero con contraste para lectura */
+.agy-sheet,
+.browser-hole-opaque {{
+  background-color: rgba(9, 12, 18, 0.45) !important;
 }}
 
-/* Separadores y bordes sutiles transparentes estilo glass */
-.bg-border,
-.border-border,
-[class*="border-border"] {{
-  border-color: rgba(255, 255, 255, 0.08) !important;
+/* Tarjetas de mensajes, bloques y diálogos: legibilidad 100% nítida */
+[class*="bg-card"],
+[class*="bg-muted"],
+[class*="bg-secondary"],
+div.group\\/message {{
+  background-color: rgba(14, 18, 28, 0.82) !important;
+  border-color: rgba(255, 255, 255, 0.12) !important;
+  backdrop-filter: blur(12px) !important;
+  -webkit-backdrop-filter: blur(12px) !important;
 }}
 
-/* Preservar legibilidad absoluta del texto y elementos interactivos */
+/* Tipografía de alto contraste */
 .text-foreground,
-p, span, h1, h2, h3, h4, h5, h6, pre, code, button, input, textarea {{
+[class*="text-foreground"],
+p, span, h1, h2, h3, h4, h5, h6, li, pre, code, button {{
+  color: #f8fafc !important;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.85) !important;
   opacity: 1 !important;
+}}
+
+.text-secondary-foreground,
+[class*="text-secondary-foreground"],
+.text-muted-foreground {{
+  color: #94a3b8 !important;
+}}
+
+/* Encabezados y títulos */
+h1, h2, h3, h4, [class*="font-semibold"] {{
+  color: #ffffff !important;
+}}
+
+/* Bloques de código pre/code */
+pre, code {{
+  background-color: rgba(10, 13, 22, 0.90) !important;
+  border-color: rgba(56, 189, 248, 0.25) !important;
+  color: #e2e8f0 !important;
+}}
+
+/* Caja de entrada / prompt de chat */
+textarea,
+input,
+[contenteditable="true"] {{
+  background-color: rgba(12, 16, 26, 0.88) !important;
+  color: #ffffff !important;
+  border: 1px solid rgba(56, 189, 248, 0.40) !important;
+  backdrop-filter: blur(14px) !important;
 }}
 """
 
@@ -138,24 +153,33 @@ async def inject_live(css_content):
             pages = json.loads(r.read())
         if not pages:
             return
-        ws_url = pages[0]["webSocketDebuggerUrl"]
-        async with websockets.connect(ws_url, max_size=20*1024*1024) as ws:
-            js = f"""
-            (function() {{
-                var STYLE_ID = 'agy-wallpaper-css';
-                var el = document.getElementById(STYLE_ID);
-                if (el) el.remove();
-                var style = document.createElement('style');
-                style.id = STYLE_ID;
-                style.textContent = {json.dumps(css_content)};
-                (document.head || document.documentElement).appendChild(style);
-                return true;
-            }})()
-            """
-            msg = {"id": 1, "method": "Runtime.evaluate", "params": {"expression": js, "returnByValue": True}}
-            await ws.send(json.dumps(msg))
-            resp = await ws.recv()
-            print("🚀 Wallpaper inyectado en vivo en la ventana activa de Antigravity.")
+        
+        js = f"""
+        (function() {{
+            var STYLE_ID = 'agy-wallpaper-css';
+            var el = document.getElementById(STYLE_ID);
+            if (el) el.remove();
+            var style = document.createElement('style');
+            style.id = STYLE_ID;
+            style.textContent = {json.dumps(css_content)};
+            (document.head || document.documentElement).appendChild(style);
+            return true;
+        }})()
+        """
+        injected = 0
+        for p in pages:
+            ws_url = p.get("webSocketDebuggerUrl")
+            if not ws_url:
+                continue
+            try:
+                async with websockets.connect(ws_url, max_size=25*1024*1024) as ws:
+                    msg = {"id": 1, "method": "Runtime.evaluate", "params": {"expression": js, "returnByValue": True}}
+                    await ws.send(json.dumps(msg))
+                    await ws.recv()
+                    injected += 1
+            except Exception:
+                pass
+        print(f"🚀 Wallpaper inyectado en vivo en {injected} vista(s) de Antigravity.")
     except Exception as e:
         print(f"ℹ️ Inyección en caliente omitida: {e}")
 

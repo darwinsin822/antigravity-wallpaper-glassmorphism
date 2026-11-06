@@ -11,7 +11,18 @@ import glob
 import shutil
 import hashlib
 
-DEFAULT_ASAR_PATH = os.path.expanduser("~/Documentos/Antigravity-x64/resources/app.asar")
+POSSIBLE_ASAR_PATHS = [
+    os.path.expanduser("~/Descargas/Antigravity-x64/resources/app.asar"),
+    os.path.expanduser("~/Documentos/Antigravity-x64/resources/app.asar"),
+]
+
+def get_asar_path():
+    for p in POSSIBLE_ASAR_PATHS:
+        if os.path.exists(p):
+            return p
+    return POSSIBLE_ASAR_PATHS[0]
+
+DEFAULT_ASAR_PATH = get_asar_path()
 BACKUP_BASE_DIR = os.path.expanduser("~/agy-wallpaper-backup")
 
 def calculate_sha256(filepath):
