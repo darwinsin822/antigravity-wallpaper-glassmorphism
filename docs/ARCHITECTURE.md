@@ -2,7 +2,7 @@
 
 ## Introducción
 
-Google Antigravity 2.0 2.0 (v2.9.1+) es una aplicación basada en **Electron** que encapsula una arquitectura web moderna (SPA servida localmente por un backend interno en Go / `language_server`). 
+Google Antigravity 2.0 (v2.9.1+) es una aplicación basada en **Electron** que encapsula una arquitectura web moderna (SPA servida localmente por un backend interno en Go / `language_server`). 
 
 Al no ser un fork de VS Code y tener `devTools: false` en producción sin sistema de extensiones para temas, la personalización requiere una solución a nivel de runtime Electron.
 

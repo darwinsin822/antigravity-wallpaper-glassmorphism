@@ -5,7 +5,7 @@
 [![Engine: Electron & Tailwind](https://img.shields.io/badge/Engine-Electron%20%7C%20TailwindCSS-38bdf8.svg?logo=tailwindcss&logoColor=white)](https://tailwindcss.com/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 
-> **Personalización avanzada de Google Antigravity 2.0 2.0 con wallpapers locales, efecto Glassmorphism y arquitectura de persistencia indestructible de 5 capas.**
+> **Personalización avanzada de Google Antigravity 2.0 con wallpapers locales, efecto Glassmorphism y arquitectura de persistencia indestructible de 5 capas.**
 
 <div align="center">
   <img src="./assets/antigravity-glassmorphism-showcase.jpg" alt="Google Antigravity 2.0 Glassmorphism UI Showcase" width="100%" style="border-radius: 10px; margin: 16px 0; box-shadow: 0 8px 24px rgba(0,0,0,0.6);" />
@@ -15,7 +15,7 @@
 
 ## 📖 Descripción General
 
-**Google Antigravity 2.0 2.0** es un entorno de desarrollo asistido por IA basado en Electron. Por defecto, su interfaz posee un fondo oscuro sólido `#101010`, carece de sistema de extensiones para temas y tiene las herramientas de desarrollo (*DevTools*) deshabilitadas en entornos de producción.
+**Google Antigravity 2.0** es un entorno de desarrollo asistido por IA basado en Electron. Por defecto, su interfaz posee un fondo oscuro sólido `#101010`, carece de sistema de extensiones para temas y tiene las herramientas de desarrollo (*DevTools*) deshabilitadas en entornos de producción.
 
 Este laboratorio proporciona una solución técnica completa, segura y reversible para:
 1. Utilizar tus propias **fotografías y wallpapers locales** (JPG, PNG, WebP) como fondo de la interfaz.
