@@ -8,15 +8,15 @@ Este documento define la arquitectura, estándares técnicos, restricciones de s
 
 El objetivo de este proyecto es proveer un motor de personalización de fondos y temas **Glassmorphism** de alto rendimiento para **Google Antigravity 2.0 / Antigravity IDE**:
 * **Rendimiento:** Cero lecturas síncronas a disco en el hilo de renderizado (`0% Disk I/O` en el DOM).
-* **Portabilidad:** Soporte nativo para distribuciones basadas en **Debian** (Debian, Ubuntu, Linux Mint) y **Arch Linux** (Arch, Manjaro, EndeavourOS, AUR `antigravity-bin`, `agy-cli`).
+* **Portabilidad:** Soporte nativo para distribuciones basadas en **Debian** (Debian, Ubuntu, Linux Mint) y **Arch Linux** (Arch, Manjaro, EndeavourOS).
 * **Seguridad:** Cero rutas predecibles en `/tmp` (mitigación CWE-377) y validación criptográfica estricta con SHA-256.
-* **Transición Tecnológica:** Reemplazar progresivamente el pipeline de scripts Python (que dependía de Python 3.10+, pip, Node.js, npm y npx) por una suite nativa, modular y ultrarrápida escrita en **Rust** (Workspace Cargo).
+* **Stack actual:** scripts en **Python 3.10+** (`scripts/`) que parchean `app.asar` y plantillas CSS (`styles/`). No hay código Rust en el repositorio: la migración a Rust propuesta por un colaborador fue descartada por el mantenedor y no es un objetivo del proyecto.
 
 ---
 
 ## 🐧 2. Matriz de Compatibilidad Multi-Distro
 
-Los motores de detección de rutas (`paths.py` y `paths.rs`) DEBEN buscar el archivo `app.asar` de Antigravity en las siguientes ubicaciones en orden de prioridad:
+Los scripts de parcheo (`scripts/patch_antigravity.py` y `scripts/restore_antigravity.py`) DEBEN buscar el archivo `app.asar` de Antigravity en las siguientes ubicaciones en orden de prioridad:
 
 ### A. Parámetro explícito / Variable de entorno
 1. Argumento CLI `--asar-path <RUTA>`
@@ -24,18 +24,21 @@ Los motores de detección de rutas (`paths.py` y `paths.rs`) DEBEN buscar el arc
 
 ### B. Detección por binario en `$PATH`
 * `which antigravity` -> resolver enlaces simbólicos hasta el directorio base de la aplicación y localizar `resources/app.asar`.
-* `which agy` -> resolver directorio raíz del CLI / IDE.
 
 ### C. Rutas del Sistema en Distribuciones Debian / Ubuntu / Linux Mint
 * `/opt/Antigravity/resources/app.asar`
 * `/opt/antigravity/resources/app.asar`
+* `/opt/Antigravity-x64/resources/app.asar`
+* `/opt/antigravity-ide/resources/app.asar`
 * `/usr/lib/antigravity/resources/app.asar`
 * `/usr/share/antigravity/resources/app.asar`
 * `~/.local/share/antigravity/resources/app.asar`
+* `~/.local/share/Antigravity/resources/app.asar`
 * `~/Documentos/Antigravity-x64/resources/app.asar` (Ruta histórica Linux Mint)
 
-### D. Rutas del Sistema en Distribuciones Arch Linux (AUR: `antigravity-bin`, `agy-cli`)
-* `/opt/antigravity-bin/resources/app.asar`
+> Nota: Google no distribuye un `.deb` oficial de Antigravity 2.x (solo tarball). Las rutas bajo `/usr/lib` y `/usr/share` son conjeturas y solo se usan si el archivo existe.
+
+### D. Rutas del Sistema en Distribuciones Arch Linux
 * `/opt/antigravity/resources/app.asar`
 * `/usr/lib/antigravity/resources/app.asar`
 * `/usr/share/antigravity/resources/app.asar`
@@ -51,7 +54,6 @@ Los motores de detección de rutas (`paths.py` y `paths.rs`) DEBEN buscar el arc
 
 1. **PROHIBIDO el uso de rutas fijas en `/tmp`:**
    * En Python: usar obligatoriamente `tempfile.TemporaryDirectory(prefix="agy_")`.
-   * En Rust: usar el crate `tempfile::Builder`.
 2. **Integridad SHA-256:**
    * En operaciones de restauración (`restore`), si el hash real no coincide con `backup.sha256`, la operación DEBE **abortar inmediatamente** con código de salida distinto de cero (`exit(1)`). Está estrictamente prohibido sobrescribir archivos con datos corruptos.
 3. **Cero I/O síncrono en el DOM:**
@@ -67,12 +69,12 @@ Los motores de detección de rutas (`paths.py` y `paths.rs`) DEBEN buscar el arc
 * `.github/workflows/ci.yml` — Pipeline de Integración Continua en GitHub Actions.
 * `AGENTS.md` — Esta guía y contrato de ingeniería.
 * `README.md` — Documentación pública con guías de inicio rápido y benchmarks.
-* `crates/` — Workspace de Rust:
-  * `agy-glass-core/` — Biblioteca principal (parser ASAR, procesador de imágenes, generador CSS, backups).
-  * `agy-glass-cli/` — Binario ejecutable de línea de comandos `agy-glass`.
-* `scripts/` — Scripts transitorios de soporte y CI (`ci.sh`).
-* `legacy/python/` — Código Python archivado para preservación histórica.
+* `scripts/` — Scripts Python del proyecto (`apply_wallpaper.py`, `patch_antigravity.py`, `restore_antigravity.py`) y el verificador de CI (`ci.sh`).
 * `styles/` — Plantillas CSS y muestras para pruebas.
+* `docs/` — Documentación técnica (arquitectura, análisis de la SPA).
+* `assets/` — Imágenes y recursos de muestra.
+
+> **Nota:** no hay código Rust en este repositorio. La migración a Rust (workspace Cargo con `crates/agy-glass-core` y `crates/agy-glass-cli`, y el archivo `legacy/python/`) fue propuesta en un PR y descartada por el mantenedor. No crear carpetas `crates/` ni `legacy/` ni referirse a ellas como estructura vigente.
 
 ---
 
@@ -80,4 +82,3 @@ Los motores de detección de rutas (`paths.py` y `paths.rs`) DEBEN buscar el arc
 
 Antes de finalizar cualquier tarea, se DEBEN ejecutar las pruebas correspondientes:
 * **CI Suite:** `./scripts/ci.sh` (código de salida 0).
-* **Rust Suite:** `cargo clippy -- -D warnings` y `cargo test --workspace`.
