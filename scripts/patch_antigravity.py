@@ -1,224 +1,183 @@
-#!/usr/bin/env python3
-"""
-patch_antigravity.py - Instalador y Parcheador del Motor de Persistencia de Antigravity IDE
-Soporte para distribuciones Debian/Ubuntu/Mint, Arch Linux (AUR) y mitigación de seguridad CWE-377.
-Autor original: DarwinSin (darwinsin822)
-Refactorización de seguridad y portabilidad: Kineyo
-Licencia: MIT
-"""
-
 import os
-import sys
 import shutil
-import hashlib
-import tempfile
-import argparse
 import subprocess
-from datetime import datetime
 
-try:
-    from paths import find_antigravity_asar, get_candidate_asar_paths, get_backup_base_dir
-except ImportError:
-    from scripts.paths import find_antigravity_asar, get_candidate_asar_paths, get_backup_base_dir
+asar_path = os.path.expanduser("~/Documentos/Antigravity-x64/resources/app.asar")
+temp_extract = "/tmp/agy_master_extract"
+temp_repack = "/tmp/agy_master_repack.asar"
 
-def calculate_sha256(filepath):
-    h = hashlib.sha256()
-    with open(filepath, "rb") as f:
-        while chunk := f.read(65536):
-            h.update(chunk)
-    return h.hexdigest()
+if os.path.exists(temp_extract):
+    shutil.rmtree(temp_extract)
+if os.path.exists(temp_repack):
+    os.remove(temp_repack)
 
-def patch(custom_asar_path=None):
-    asar_path = find_antigravity_asar(custom_asar_path)
-    if not asar_path or not os.path.exists(asar_path):
-        print("❌ Error: No se encontró app.asar de Antigravity.")
-        print("🔍 Rutas inspeccionadas:")
-        for cand in get_candidate_asar_paths():
-            print(f"  • {cand}")
-        print("\n💡 Puedes especificar la ruta manualmente con:")
-        print("   python3 scripts/patch_antigravity.py --asar-path \"/ruta/a/resources/app.asar\"")
-        sys.exit(1)
+print("1. Extrayendo app.asar...")
+subprocess.run(["npx", "--yes", "@electron/asar", "extract", asar_path, temp_extract], check=True)
 
-    print(f"🔍 Antigravity IDE detectado en: {asar_path}")
-    timestamp = datetime.now().strftime("%Y-%m-%d_%H%M")
-    backup_base = get_backup_base_dir()
-    backup_dir = os.path.join(backup_base, timestamp)
-    os.makedirs(backup_dir, exist_ok=True)
-    backup_file = os.path.join(backup_dir, "app.asar")
+main_path = os.path.join(temp_extract, "dist", "main.js")
+utils_path = os.path.join(temp_extract, "dist", "utils.js")
+ipc_path = os.path.join(temp_extract, "dist", "ipcHandlers.js")
+preload_path = os.path.join(temp_extract, "dist", "preload.js")
 
-    print(f"📦 Creando copia de seguridad en: {backup_file}...")
-    shutil.copy2(asar_path, backup_file)
-    sha_orig = calculate_sha256(backup_file)
-    with open(os.path.join(backup_dir, "backup.sha256"), "w") as f:
-        f.write(f"{sha_orig}  {backup_file}\n")
-    print(f"✅ Backup creado con SHA-256: {sha_orig}")
+# --- 1. Parchear main.js: Agregar switch remote-debugging-port ---
+print("2. Parcheando main.js con remote-debugging-port...")
+with open(main_path, "r") as f:
+    main_code = f.read()
 
-    # Uso de tempfile seguro para mitigar CWE-377 (ataques de enlace simbólico / colisión en /tmp)
-    with tempfile.TemporaryDirectory(prefix="agy_patch_") as tmp_dir:
-        temp_extract = os.path.join(tmp_dir, "extracted")
-        temp_repack = os.path.join(tmp_dir, "repacked.asar")
+switch_code = """
+electron_1.app.commandLine.appendSwitch('remote-debugging-port', '0');
+"""
+if "'remote-debugging-port'" not in main_code:
+    target = "electron_1.app.commandLine.appendSwitch('disable-blink-features', 'AutomationControlled');"
+    main_code = main_code.replace(target, switch_code + "\n" + target)
+    with open(main_path, "w") as f:
+        f.write(main_code)
 
-        print("📂 Extrayendo app.asar de forma segura...")
-        subprocess.run(["npx", "--yes", "@electron/asar", "extract", asar_path, temp_extract], check=True)
+# --- 2. Parchear ipcHandlers.js: Canal IPC para leer el CSS ---
+print("3. Parcheando ipcHandlers.js con canal 'agy:get-wallpaper-css'...")
+with open(ipc_path, "r") as f:
+    ipc_code = f.read()
 
-        preload_path = os.path.join(temp_extract, "dist", "preload.js")
-        utils_path = os.path.join(temp_extract, "dist", "utils.js")
+ipc_hook = """
+    // === Canal IPC síncrono para leer wallpaper.css ===
+    electron_1.ipcMain.removeAllListeners?.('agy:get-wallpaper-css');
+    electron_1.ipcMain.on('agy:get-wallpaper-css', (event) => {
+        try {
+            const os = require('os');
+            const path = require('path');
+            const fs = require('fs');
+            const p = path.join(os.homedir(), '.gemini', 'antigravity', 'custom', 'wallpaper.css');
+            event.returnValue = fs.existsSync(p) ? fs.readFileSync(p, 'utf-8') : '';
+        } catch (_) {
+            event.returnValue = '';
+        }
+    });
+"""
+if "'agy:get-wallpaper-css'" not in ipc_code:
+    target_ipc = "electron_1.ipcMain.removeAllListeners?.('storage:get-items-sync');"
+    ipc_code = ipc_code.replace(target_ipc, ipc_hook + "\n    " + target_ipc)
+    with open(ipc_path, "w") as f:
+        f.write(ipc_code)
 
-        if not os.path.exists(preload_path) or not os.path.exists(utils_path):
-            print(f"❌ Error: Estructura interna de app.asar inesperada. No se encontró preload.js o utils.js.")
-            sys.exit(1)
+# --- 3. Parchear utils.js: Inyección nativa en hubContents ---
+print("4. Parcheando utils.js con inyección nativa en hubContents...")
+with open(utils_path, "r") as f:
+    utils_code = f.read()
 
-        # 1. Parchear preload.js
-        print("⚡ Inyectando motor de persistencia en preload.js...")
-        with open(preload_path, "r") as f:
-            preload_code = f.read()
+native_injection = """
+        const applyNativeWallpaperCSS = () => {
+            try {
+                const os_mod = require('os');
+                const path_mod = require('path');
+                const fs_mod = require('fs');
+                const cssPath = path_mod.join(os_mod.homedir(), '.gemini', 'antigravity', 'custom', 'wallpaper.css');
+                if (fs_mod.existsSync(cssPath) && !win.isDestroyed?.() && !hubContents.isDestroyed?.()) {
+                    const css = fs_mod.readFileSync(cssPath, 'utf-8');
+                    void hubContents.insertCSS(css);
+                }
+            } catch (_) {}
+        };
+        hubContents.on('did-finish-load', applyNativeWallpaperCSS);
+        hubContents.on('dom-ready', applyNativeWallpaperCSS);
+"""
+if "applyNativeWallpaperCSS" not in utils_code:
+    target_utils = "const handleDidFinishLoad = () => {"
+    utils_code = utils_code.replace(target_utils, native_injection + "\n        " + target_utils)
+    with open(utils_path, "w") as f:
+        f.write(utils_code)
 
-        preload_patch = """
+# --- 4. Parchear preload.js: Inyección en DOM usando ipcRenderer ---
+print("5. Parcheando preload.js con soporte robusto vía ipcRenderer...")
+with open(preload_path, "r") as f:
+    preload_code = f.read()
+
+# Remover parche anterior si existía para actualizarlo
+if "// SISTEMA PERMANENTE DE WALLPAPER GLASSMORPHISM" in preload_code:
+    idx = preload_code.find("// ============================================================================\n// SISTEMA PERMANENTE DE WALLPAPER GLASSMORPHISM")
+    preload_code = preload_code[:idx]
+
+preload_patch = """
 // ============================================================================
-// SISTEMA REACTIVO DE WALLPAPER GLASSMORPHISM (EVENT-DRIVEN, 0% DISK I/O EN DOM)
+// SISTEMA PERMANENTE DE WALLPAPER GLASSMORPHISM (INDESTRUCTIBLE V2)
 // ============================================================================
 (function() {
     try {
-        const fs = require('fs');
-        const path = require('path');
-        const os = require('os');
-        const cssPath = path.join(os.homedir(), '.gemini', 'antigravity', 'custom', 'wallpaper.css');
         const STYLE_ID = 'agy-wallpaper-css';
 
-        let cachedCSS = '';
-        window.__agy_permanent_heartbeat = true;
-
-        function loadCSSFromDisk() {
+        function getCSS() {
             try {
-                if (fs.existsSync(cssPath)) {
-                    cachedCSS = fs.readFileSync(cssPath, 'utf-8');
-                } else {
-                    cachedCSS = '';
+                if (typeof electron_1 !== 'undefined' && electron_1.ipcRenderer && typeof electron_1.ipcRenderer.sendSync === 'function') {
+                    const c = electron_1.ipcRenderer.sendSync('agy:get-wallpaper-css');
+                    if (c) return c;
                 }
             } catch (_) {}
+            try {
+                const fs = require('fs');
+                const path = require('path');
+                const os = require('os');
+                const cssPath = path.join(os.homedir(), '.gemini', 'antigravity', 'custom', 'wallpaper.css');
+                if (fs.existsSync(cssPath)) return fs.readFileSync(cssPath, 'utf-8');
+            } catch (_) {}
+            return '';
         }
 
-        function ensureStyleNode() {
+        function applyWallpaperStyle() {
             try {
-                if (!cachedCSS) return;
-                const target = document.head || document.documentElement;
+                const doc = typeof document !== 'undefined' ? document : (globalThis.document || null);
+                if (!doc) return;
+                const target = doc.head || doc.documentElement;
                 if (!target) return;
+                const css = getCSS();
+                if (!css) return;
 
-                let existing = document.getElementById(STYLE_ID);
+                let existing = doc.getElementById(STYLE_ID);
                 if (existing) {
-                    if (existing.textContent !== cachedCSS) {
-                        existing.textContent = cachedCSS;
-                    }
+                    if (existing.textContent !== css) existing.textContent = css;
                     return;
                 }
 
-                const style = document.createElement('style');
+                const style = doc.createElement('style');
                 style.id = STYLE_ID;
-                style.textContent = cachedCSS;
+                style.textContent = css;
                 target.appendChild(style);
             } catch (_) {}
         }
 
-        // 1. Carga inicial en memoria
-        loadCSSFromDisk();
-        ensureStyleNode();
-        window.addEventListener('DOMContentLoaded', ensureStyleNode);
-        window.addEventListener('load', ensureStyleNode);
+        applyWallpaperStyle();
+        if (typeof window !== 'undefined') {
+            window.addEventListener('DOMContentLoaded', applyWallpaperStyle);
+            window.addEventListener('load', applyWallpaperStyle);
+        }
 
-        // 2. Observador reactivo de archivo en disco (Sin lecturas síncronas en renderizado)
-        try {
-            if (fs.existsSync(cssPath)) {
-                fs.watchFile(cssPath, { interval: 300 }, (curr, prev) => {
-                    if (curr.mtime !== prev.mtime) {
-                        loadCSSFromDisk();
-                        ensureStyleNode();
-                    }
-                });
-            }
-        } catch (_) {}
-
-        // 3. MutationObserver ultraligero: SOLO reinserta si el nodo fue removido (0% Disk I/O)
         function setupObserver() {
             try {
-                if (!document.documentElement) return;
-                const observer = new MutationObserver(() => {
-                    if (!document.getElementById(STYLE_ID)) {
-                        ensureStyleNode();
-                    }
-                });
-                observer.observe(document.documentElement, { childList: true, subtree: false });
+                const doc = typeof document !== 'undefined' ? document : (globalThis.document || null);
+                if (!doc || !doc.documentElement) return;
+                const Obs = typeof MutationObserver !== 'undefined' ? MutationObserver : globalThis.MutationObserver;
+                if (typeof Obs === 'function') {
+                    const observer = new Obs(() => applyWallpaperStyle());
+                    observer.observe(doc.documentElement, { childList: true, subtree: true });
+                }
             } catch (_) {}
         }
 
-        if (document.documentElement) setupObserver();
-        else document.addEventListener('readystatechange', () => { if (document.documentElement) setupObserver(); ensureStyleNode(); });
-
-        // 4. Intercepción de History API para navegación SPA
-        try {
-            const origPushState = history.pushState;
-            history.pushState = function() { origPushState.apply(this, arguments); ensureStyleNode(); };
-            const origReplaceState = history.replaceState;
-            history.replaceState = function() { origReplaceState.apply(this, arguments); ensureStyleNode(); };
-            window.addEventListener('popstate', ensureStyleNode);
-        } catch (_) {}
+        setupObserver();
+        setInterval(applyWallpaperStyle, 1000);
     } catch (e) {
         console.error('[Wallpaper Preload] Error:', e);
     }
 })();
 """
-        if "SISTEMA REACTIVO DE WALLPAPER GLASSMORPHISM" not in preload_code:
-            preload_code += preload_patch
-            with open(preload_path, "w") as f:
-                f.write(preload_code)
+preload_code += preload_patch
+with open(preload_path, "w") as f:
+    f.write(preload_code)
 
-        # 2. Parchear utils.js (DevTools y listeners nativos)
-        print("⚡ Parcheando utils.js (DevTools + listeners Chromium)...")
-        with open(utils_path, "r") as f:
-            utils_code = f.read()
+print("6. Reempaquetando app.asar con @electron/asar...")
+subprocess.run(["npx", "--yes", "@electron/asar", "pack", temp_extract, temp_repack], check=True)
 
-        utils_code = utils_code.replace("devTools: !electron_1.app.isPackaged,", "devTools: true,")
-        native_hook = """
-    // === Respaldo nativo de inyección de CSS a nivel de ventana de Electron ===
-    const applyNativeCSS = () => {
-        try {
-            const os_mod = require('os');
-            const path_mod = require('path');
-            const fs_mod = require('fs');
-            const cssPath = path_mod.join(os_mod.homedir(), '.gemini', 'antigravity', 'custom', 'wallpaper.css');
-            if (fs_mod.existsSync(cssPath)) {
-                const css = fs_mod.readFileSync(cssPath, 'utf-8');
-                void win.webContents.insertCSS(css);
-            }
-        } catch (_) {}
-    };
-    win.webContents.on('did-finish-load', applyNativeCSS);
-    win.webContents.on('dom-ready', applyNativeCSS);
-    win.webContents.on('did-navigate', applyNativeCSS);
-    win.webContents.on('did-navigate-in-page', applyNativeCSS);
-"""
-        if "applyNativeCSS" not in utils_code:
-            target_str = "void win.loadURL(url);"
-            if target_str in utils_code:
-                utils_code = utils_code.replace(target_str, native_hook + "    " + target_str)
-                with open(utils_path, "w") as f:
-                    f.write(utils_code)
-            else:
-                print("⚠️ Advertencia: No se encontró el punto de anclaje win.loadURL en utils.js. Se mantendrá la inyección en preload.")
+shutil.copy2(temp_repack, asar_path)
+shutil.rmtree(temp_extract, ignore_errors=True)
+if os.path.exists(temp_repack):
+    os.remove(temp_repack)
 
-        print("📦 Reempaquetando app.asar con @electron/asar de forma atómica...")
-        subprocess.run(["npx", "--yes", "@electron/asar", "pack", temp_extract, temp_repack], check=True)
-
-        shutil.copy2(temp_repack, asar_path)
-
-    print(f"🎉 ¡Antigravity IDE parcheado exitosamente en {asar_path}!")
-    print("💡 Puedes aplicar cualquier wallpaper ejecutando:")
-    print("   python3 scripts/apply_wallpaper.py \"/ruta/a/imagen.jpg\"")
-
-def main():
-    parser = argparse.ArgumentParser(description="Instalador y parcheador del motor de personalización de Antigravity IDE.")
-    parser.add_argument("--asar-path", dest="asar_path", default=None, help="Ruta manual al archivo resources/app.asar")
-    args = parser.parse_args()
-    patch(args.asar_path)
-
-if __name__ == "__main__":
-    main()
+print("🎉 ¡Parche integral V2 aplicado con éxito en", asar_path, "!")
