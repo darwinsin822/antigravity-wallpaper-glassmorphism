@@ -34,6 +34,218 @@ except ImportError:
 
 CUSTOM_CSS_PATH = get_custom_css_path()
 
+def generate_cyberpunk_css(data_uri, wallpaper_name):
+    return f"""/* ======================================================================
+   Antigravity IDE — Futuristic Cyberpunk High-Tech Theme
+   Theme: Cyberpunk HUD & Neon Glassmorphism
+   Wallpaper: {wallpaper_name}
+   ====================================================================== */
+
+:root {{
+  --primary: #00f0ff !important;
+  --primary-foreground: #020617 !important;
+  --cyber-magenta: #ff0055 !important;
+  --cyber-yellow: #ffe600 !important;
+  --cyber-cyan: #00f0ff !important;
+  --background: rgba(8, 12, 22, 0.70) !important;
+  --color-background: rgba(8, 12, 22, 0.70) !important;
+  --sidebar: rgba(6, 9, 18, 0.82) !important;
+  --color-sidebar-secondary: rgba(10, 15, 28, 0.78) !important;
+  --card: rgba(10, 15, 28, 0.82) !important;
+  --color-card: rgba(10, 15, 28, 0.82) !important;
+  --agy-wallpaper-scrim: linear-gradient(180deg, rgba(5, 7, 15, 0.40) 0%, rgba(8, 12, 22, 0.65) 100%) !important;
+}}
+
+/* Limpieza de contenedores anidados para evitar multiplicación de opacidades y oscurecimiento */
+.agy-shell,
+.agy-sheet,
+[data-split-root],
+[data-testid="aux-pane-split"],
+[data-testid="aux-pane-split"] > div,
+.flex-1.flex.min-h-0,
+.flex-1.flex.min-h-0 > div {{
+  background-color: transparent !important;
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+}}
+
+/* Fondo Cyberpunk con wallpaper */
+html,
+body {{
+  background: #05070f !important;
+  background-image: url("{data_uri}") !important;
+  background-size: cover !important;
+  background-position: center center !important;
+  background-attachment: fixed !important;
+  background-repeat: no-repeat !important;
+}}
+
+/* Scrim con viñeta para máxima nitidez y profundidad */
+body::before {{
+  content: "" !important;
+  position: fixed !important;
+  top: 0 !important;
+  left: 0 !important;
+  right: 0 !important;
+  bottom: 0 !important;
+  background: radial-gradient(circle at center, rgba(5, 8, 18, 0.35) 0%, rgba(3, 5, 12, 0.75) 100%) !important;
+  pointer-events: none !important;
+  z-index: 0 !important;
+}}
+
+.bg-background,
+[class*="bg-background"] {{
+  background-color: transparent !important;
+}}
+
+/* Sidebar Cyberpunk HUD con borde de neón cian */
+.bg-sidebar,
+[class*="bg-sidebar"],
+[data-testid="sidebar"] {{
+  background-color: rgba(6, 9, 18, 0.82) !important;
+  backdrop-filter: blur(18px) !important;
+  -webkit-backdrop-filter: blur(18px) !important;
+  border-right: 1px solid rgba(0, 240, 255, 0.22) !important;
+  box-shadow: 2px 0 15px rgba(0, 240, 255, 0.05) !important;
+}}
+
+/* Panel principal y área de chat */
+.agy-sheet,
+.browser-hole-opaque {{
+  background-color: rgba(6, 9, 16, 0.40) !important;
+}}
+
+/* Tarjetas HUD de mensajes y diálogos */
+[class*="bg-card"],
+[class*="bg-muted"],
+[class*="bg-secondary"],
+div.group\\/message {{
+  background-color: rgba(9, 14, 26, 0.84) !important;
+  border: 1px solid rgba(0, 240, 255, 0.20) !important;
+  border-radius: 8px !important;
+  backdrop-filter: blur(14px) !important;
+  -webkit-backdrop-filter: blur(14px) !important;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.45), inset 0 0 12px rgba(0, 240, 255, 0.03) !important;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease !important;
+}}
+
+div.group\\/message:hover {{
+  border-color: rgba(0, 240, 255, 0.40) !important;
+  box-shadow: 0 4px 25px rgba(0, 240, 255, 0.12), inset 0 0 15px rgba(0, 240, 255, 0.05) !important;
+}}
+
+/* Tipografía de alto contraste con estética futurista */
+.text-foreground,
+[class*="text-foreground"],
+p, span, li {{
+  color: #f1f5f9 !important;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.9) !important;
+}}
+
+.text-secondary-foreground,
+[class*="text-secondary-foreground"],
+.text-muted-foreground {{
+  color: #94a3b8 !important;
+}}
+
+/* Encabezados y títulos con resplandor cian */
+h1, h2, h3, h4, [class*="font-semibold"] {{
+  color: #ffffff !important;
+  letter-spacing: 0.02em !important;
+}}
+
+h1, h2 {{
+  text-shadow: 0 0 10px rgba(0, 240, 255, 0.4) !important;
+}}
+
+/* Terminal de código: Bloques de código pre y code */
+pre {{
+  background-color: rgba(4, 7, 15, 0.94) !important;
+  border: 1px solid rgba(0, 240, 255, 0.25) !important;
+  border-left: 3px solid #00f0ff !important;
+  border-radius: 6px !important;
+  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.6) !important;
+}}
+
+code {{
+  color: #38bdf8 !important;
+}}
+
+/* Caja de entrada / Prompt terminal Cyberpunk */
+textarea,
+input,
+[contenteditable="true"] {{
+  background-color: rgba(7, 11, 22, 0.90) !important;
+  color: #ffffff !important;
+  border: 1px solid rgba(0, 240, 255, 0.40) !important;
+  border-radius: 8px !important;
+  backdrop-filter: blur(16px) !important;
+  box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.5) !important;
+  transition: all 0.25s ease !important;
+}}
+
+textarea:focus,
+input:focus,
+[contenteditable="true"]:focus {{
+  border-color: #00f0ff !important;
+  box-shadow: 0 0 16px rgba(0, 240, 255, 0.45), inset 0 0 8px rgba(0, 240, 255, 0.15) !important;
+  outline: none !important;
+}}
+
+/* Botones con estilo Cyberpunk Neón */
+button[class*="bg-primary"],
+.bg-primary {{
+  background: linear-gradient(135deg, #00f0ff 0%, #00b8d4 100%) !important;
+  color: #030712 !important;
+  font-weight: 600 !important;
+  border: 1px solid #00f0ff !important;
+  box-shadow: 0 0 12px rgba(0, 240, 255, 0.4) !important;
+  transition: all 0.2s ease !important;
+}}
+
+button[class*="bg-primary"]:hover,
+.bg-primary:hover {{
+  background: linear-gradient(135deg, #38bdf8 0%, #00f0ff 100%) !important;
+  box-shadow: 0 0 20px rgba(0, 240, 255, 0.65) !important;
+  transform: translateY(-1px) !important;
+}}
+
+/* Scrollbars Cyberpunk Neón */
+::-webkit-scrollbar {{
+  width: 6px !important;
+  height: 6px !important;
+}}
+
+::-webkit-scrollbar-track {{
+  background: rgba(4, 6, 12, 0.6) !important;
+}}
+
+::-webkit-scrollbar-thumb {{
+  background: linear-gradient(180deg, #00f0ff, #ff0055) !important;
+  border-radius: 4px !important;
+}}
+
+::-webkit-scrollbar-thumb:hover {{
+  background: #00f0ff !important;
+  box-shadow: 0 0 10px #00f0ff !important;
+}}
+
+/* Badges y chips de estado */
+[class*="badge"],
+[class*="tag"] {{
+  border: 1px solid rgba(0, 240, 255, 0.35) !important;
+  background-color: rgba(0, 240, 255, 0.08) !important;
+  color: #00f0ff !important;
+}}
+
+/* Separadores y bordes sutiles transparentes estilo glass */
+.bg-border,
+.border-border,
+[class*="border-border"] {{
+  border-color: rgba(0, 240, 255, 0.15) !important;
+}}
+"""
+
 def generate_glassmorphism_css(data_uri, wallpaper_name):
     return f"""/* ======================================================================
    Antigravity IDE — Wallpaper Glassmorphism & High-Contrast Readability
@@ -223,8 +435,9 @@ async def inject_live(css_content):
         print(f"ℹ️ Inyección en caliente omitida: {e}")
 
 def main():
-    parser = argparse.ArgumentParser(description="Aplica un wallpaper con efecto Glassmorphism a Google Antigravity IDE.")
+    parser = argparse.ArgumentParser(description="Aplica un tema y wallpaper Glassmorphism/Cyberpunk a Google Antigravity IDE.")
     parser.add_argument("image", nargs="?", help="Ruta o nombre del archivo de imagen (JPG, PNG, WebP)")
+    parser.add_argument("--theme", choices=["cyberpunk", "glassmorphism"], default="cyberpunk", help="Tema estético a aplicar ('cyberpunk' predeterminado o 'glassmorphism')")
     parser.add_argument("--list", action="store_true", help="Lista las imágenes disponibles en las carpetas de imágenes detectadas")
     args = parser.parse_args()
 
@@ -247,28 +460,43 @@ def main():
             print(f"ℹ️ No se encontraron imágenes en las carpetas inspeccionadas: {', '.join(wallpaper_dirs)}")
         return
 
-    if not args.image:
+    target_image = args.image
+    if not target_image:
+        if args.theme == "cyberpunk":
+            # Buscar automáticamente wallpaper cyberpunk por defecto
+            for wdir in wallpaper_dirs:
+                candidate = os.path.join(wdir, "cyberpunk_futuristic_city.jpg")
+                if os.path.exists(candidate):
+                    target_image = candidate
+                    break
+
+    if not target_image:
         parser.print_help()
         sys.exit(1)
 
-    image_path = os.path.abspath(os.path.expanduser(args.image))
+    image_path = os.path.abspath(os.path.expanduser(target_image))
     if not os.path.exists(image_path):
         # Buscar en las carpetas de imágenes detectadas (XDG / Pictures / etc.)
         found = False
         for wdir in wallpaper_dirs:
-            alt_path = os.path.join(wdir, args.image)
+            alt_path = os.path.join(wdir, target_image)
             if os.path.exists(alt_path):
                 image_path = alt_path
                 found = True
                 break
         if not found:
-            print(f"❌ Error: La imagen '{args.image}' no fue encontrada.")
+            print(f"❌ Error: La imagen '{target_image}' no fue encontrada.")
             print(f"🔍 Carpetas inspeccionadas: {', '.join(wallpaper_dirs)}")
             sys.exit(1)
 
+    print(f"🎨 Tema seleccionado: {args.theme.upper()}")
     print(f"🖼️ Procesando wallpaper: {os.path.basename(image_path)}...")
     data_uri = optimize_image_to_data_uri(image_path)
-    css_content = generate_glassmorphism_css(data_uri, os.path.basename(image_path))
+    
+    if args.theme == "cyberpunk":
+        css_content = generate_cyberpunk_css(data_uri, os.path.basename(image_path))
+    else:
+        css_content = generate_glassmorphism_css(data_uri, os.path.basename(image_path))
 
     os.makedirs(os.path.dirname(CUSTOM_CSS_PATH), exist_ok=True)
     with open(CUSTOM_CSS_PATH, "w") as f:
@@ -280,7 +508,7 @@ def main():
     else:
         print("ℹ️ websockets no disponible. El cambio será visible al reiniciar Antigravity.")
 
-    print("✨ ¡Wallpaper Glassmorphism establecido con éxito!")
+    print(f"✨ ¡Tema {args.theme.capitalize()} y Wallpaper establecidos con éxito!")
 
 if __name__ == "__main__":
     main()
